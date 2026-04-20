@@ -17,6 +17,7 @@ from .const import (
     ACCOUNT_DEFAULT_NAME,
     CUSTOMER_MAP_POSITIONS_PATH,
     FMS_ALERTS_PATH,
+    FMS_ALERTS_BULK_READ_PATH,
     FMS_VEHICLES_PATH,
     LOGIN_PATH,
     LOGIN_POST_PATH,
@@ -399,6 +400,45 @@ class ScorpionTrackAccountClient:
                 json_data={mode_key: bool(enabled)},
             )
 
+    async def async_mark_all_alerts_read(self) -> int:
+        """Mark all unread alerts as read and return the updated count."""
+        await self.async_login()
+
+        try:
+            portal_context = await self._require_portal_context()
+            unread_alert_payloads = await self._async_get_unread_alert_payloads(portal_context)
+            if not unread_alert_payloads:
+                return 0
+
+            payload = await self._request_fms_json(
+                portal_context,
+                "POST",
+                FMS_ALERTS_BULK_READ_PATH,
+                json_data={"alerts": unread_alert_payloads},
+            )
+        except ScorpionTrackAuthError:
+            await self.async_login(force=True)
+            portal_context = await self._require_portal_context()
+            unread_alert_payloads = await self._async_get_unread_alert_payloads(portal_context)
+            if not unread_alert_payloads:
+                return 0
+
+            payload = await self._request_fms_json(
+                portal_context,
+                "POST",
+                FMS_ALERTS_BULK_READ_PATH,
+                json_data={"alerts": unread_alert_payloads},
+            )
+
+        if isinstance(payload, dict):
+            data = payload.get("data")
+            if isinstance(data, dict):
+                updated = _coerce_int(data.get("updated"))
+                if updated is not None:
+                    return updated
+
+        return len(unread_alert_payloads)
+
     async def _async_build_account_data(self) -> ScorpionTrackAccountData:
         """Build the latest account snapshot."""
         portal_context = await self._require_portal_context()
@@ -584,6 +624,49 @@ class ScorpionTrackAccountClient:
         meta = payload.get("meta")
         total = _coerce_int(meta.get("total")) if isinstance(meta, dict) else None
         return alerts, total
+
+    async def _async_get_unread_alert_payloads(
+        self,
+        portal_context: ScorpionTrackPortalContext,
+        *,
+        page_size: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return every unread alert payload available to the account."""
+        alerts: list[dict[str, Any]] = []
+        page = 1
+
+        while True:
+            payload = await self._request_fms_json(
+                portal_context,
+                "GET",
+                FMS_ALERTS_PATH,
+                params={
+                    "unread_only": "1",
+                    "page": page,
+                    "limit": page_size,
+                },
+            )
+
+            if not isinstance(payload, dict):
+                raise ScorpionTrackPortalError(
+                    "Unread alerts endpoint returned a non-object payload"
+                )
+
+            data = payload.get("data")
+            if isinstance(data, list):
+                for item in data:
+                    if not isinstance(item, dict):
+                        continue
+                    if _coerce_int(item.get("id")) is not None:
+                        alerts.append(item)
+
+            meta = payload.get("meta")
+            total_pages = _coerce_int(meta.get("total_pages")) if isinstance(meta, dict) else None
+            if total_pages is None or page >= total_pages:
+                break
+            page += 1
+
+        return alerts
 
     async def _require_portal_context(self) -> ScorpionTrackPortalContext:
         """Return the current portal context, refreshing it when necessary."""

@@ -25,6 +25,7 @@ VEHICLE_LIST_PAGE_PATH = "/customer/vehicle/vehiclelist"
 CUSTOMER_MAP_POSITIONS_PATH = "/customer/map/getNewVehiclePositions"
 FMS_VEHICLES_PATH = "/vehicles"
 FMS_ALERTS_PATH = "/alerts-dashboard/alerts"
+FMS_ALERTS_BULK_READ_PATH = "/alerts-dashboard/bulk-read"
 
 API_BASE_URL = "https://api2.fleet.scorpiontrack.com/v1"
 
@@ -37,4 +38,5 @@ PLATFORMS: tuple[Platform, ...] = (
     Platform.BINARY_SENSOR,
     Platform.DEVICE_TRACKER,
     Platform.SWITCH,
+    Platform.BUTTON,
 )
