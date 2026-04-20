@@ -60,6 +60,70 @@ class ScorpionTrackPortalContext:
 
 
 @dataclass(slots=True, frozen=True)
+class ScorpionTrackAlertSummary:
+    """A compact authenticated alert record."""
+
+    id: int
+    source: str | None
+    type: str | None
+    severity: str | None
+    timestamp: datetime | None
+    read_status: bool | None
+    vehicle_id: int | None
+    vehicle_registration: str | None
+    vehicle_alias: str | None
+    vehicle_name: str | None
+    alert_name: str | None
+    speed_recorded: float | None
+    road_speed: float | None
+    idle: float | None
+    engine_hours: float | None
+    latitude: float | None
+    longitude: float | None
+
+    @property
+    def display_vehicle(self) -> str | None:
+        """Return the best user-facing vehicle label."""
+        return (
+            self.vehicle_alias
+            or self.vehicle_registration
+            or self.vehicle_name
+            or (f"Vehicle {self.vehicle_id}" if self.vehicle_id is not None else None)
+        )
+
+    @property
+    def summary(self) -> str:
+        """Return a short one-line summary for the alert."""
+        label = self.type or "Alert"
+        if self.alert_name and self.alert_name.lower() != label.lower():
+            label = f"{label} ({self.alert_name})"
+        if self.display_vehicle:
+            return f"{label} - {self.display_vehicle}"
+        return label
+
+    def as_attribute_dict(self) -> dict[str, object]:
+        """Return the alert as Home Assistant-friendly attributes."""
+        return {
+            "alert_id": self.id,
+            "source": self.source,
+            "type": self.type,
+            "severity": self.severity,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "read": self.read_status,
+            "vehicle_id": self.vehicle_id,
+            "vehicle": self.display_vehicle,
+            "vehicle_registration": self.vehicle_registration,
+            "alert_name": self.alert_name,
+            "speed_recorded": self.speed_recorded,
+            "road_speed": self.road_speed,
+            "idle": self.idle,
+            "engine_hours": self.engine_hours,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+        }
+
+
+@dataclass(slots=True, frozen=True)
 class ScorpionTrackVehiclePosition:
     """The best-known position for a vehicle."""
 
@@ -165,7 +229,9 @@ class ScorpionTrackAccountData:
     app_api_key: str | None
     fms_api_url: str | None
     vehicles: tuple[ScorpionTrackVehicleSummary, ...]
+    total_alerts: int | None
     unread_alerts: int | None
+    alerts: tuple[ScorpionTrackAlertSummary, ...]
     fetched_at: datetime
 
     @property
@@ -177,6 +243,14 @@ class ScorpionTrackAccountData:
     def uses_miles(self) -> bool:
         """Return True when the portal is configured to display miles."""
         return (self.distance_units or "").strip().lower().startswith("mile")
+
+    @property
+    def latest_alert(self) -> ScorpionTrackAlertSummary | None:
+        """Return the newest unread alert when available, else the newest alert."""
+        for alert in self.alerts:
+            if alert.read_status is False:
+                return alert
+        return self.alerts[0] if self.alerts else None
 
 
 class ScorpionTrackAccountClient:
@@ -346,6 +420,17 @@ class ScorpionTrackAccountClient:
             if isinstance(payload, dict) and _coerce_int(payload.get("id")) is not None
         )
 
+        alerts: tuple[ScorpionTrackAlertSummary, ...] = ()
+        total_alerts: int | None = None
+        try:
+            alerts, total_alerts = await self._async_get_recent_alerts(
+                portal_context,
+                limit=5,
+            )
+        except ScorpionTrackPortalError:
+            alerts = ()
+            total_alerts = None
+
         try:
             unread_alerts = await self._async_get_unread_alert_count(portal_context)
         except ScorpionTrackPortalError:
@@ -364,7 +449,9 @@ class ScorpionTrackAccountClient:
             app_api_key=portal_context.app_api_key,
             fms_api_url=portal_context.fms_api_url,
             vehicles=vehicles,
+            total_alerts=total_alerts,
             unread_alerts=unread_alerts,
+            alerts=alerts,
             fetched_at=datetime.now(UTC),
         )
 
@@ -466,6 +553,37 @@ class ScorpionTrackAccountClient:
                 return len(data)
 
         return None
+
+    async def _async_get_recent_alerts(
+        self,
+        portal_context: ScorpionTrackPortalContext,
+        *,
+        limit: int,
+    ) -> tuple[tuple[ScorpionTrackAlertSummary, ...], int | None]:
+        """Return the newest alert records plus the total alert count."""
+        payload = await self._request_fms_json(
+            portal_context,
+            "GET",
+            FMS_ALERTS_PATH,
+            params={
+                "page": 1,
+                "limit": limit,
+            },
+        )
+
+        if not isinstance(payload, dict):
+            raise ScorpionTrackPortalError(
+                "Alerts endpoint returned a non-object payload"
+            )
+
+        alerts = tuple(
+            self._parse_alert(item)
+            for item in payload.get("data", [])
+            if isinstance(item, dict)
+        )
+        meta = payload.get("meta")
+        total = _coerce_int(meta.get("total")) if isinstance(meta, dict) else None
+        return alerts, total
 
     async def _require_portal_context(self) -> ScorpionTrackPortalContext:
         """Return the current portal context, refreshing it when necessary."""
@@ -737,6 +855,32 @@ class ScorpionTrackAccountClient:
             unit_make=_clean_text(unit_data.get("make")),
             unit_last_checked_in=_coerce_datetime(unit_data.get("last_checked_in")),
             position=position,
+        )
+
+    def _parse_alert(self, alert_data: dict[str, Any]) -> ScorpionTrackAlertSummary:
+        """Convert a raw alert payload into a compact summary."""
+        vehicle_data = _extract_nested_dict(alert_data.get("vehicle"))
+        details_data = _extract_nested_dict(alert_data.get("details"))
+        location_data = _extract_nested_dict(alert_data.get("location"))
+
+        return ScorpionTrackAlertSummary(
+            id=int(alert_data["id"]),
+            source=_clean_text(alert_data.get("source")),
+            type=_clean_text(alert_data.get("type")),
+            severity=_clean_text(alert_data.get("severity")),
+            timestamp=_coerce_datetime(alert_data.get("timestamp")),
+            read_status=_coerce_bool(alert_data.get("read_status")),
+            vehicle_id=_coerce_int(vehicle_data.get("id")),
+            vehicle_registration=_clean_text(vehicle_data.get("registration")),
+            vehicle_alias=_clean_text(vehicle_data.get("alias")),
+            vehicle_name=_clean_text(vehicle_data.get("vehicle_name")),
+            alert_name=_clean_text(details_data.get("alert_name")),
+            speed_recorded=_coerce_float(details_data.get("speed_recorded")),
+            road_speed=_coerce_float(details_data.get("road_speed")),
+            idle=_coerce_float(details_data.get("idle")),
+            engine_hours=_coerce_float(details_data.get("engine_hours")),
+            latitude=_coerce_float(location_data.get("latitude")),
+            longitude=_coerce_float(location_data.get("longitude")),
         )
 
 

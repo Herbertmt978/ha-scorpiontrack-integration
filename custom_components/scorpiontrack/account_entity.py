@@ -45,6 +45,13 @@ class ScorpionTrackAccountEntity(ScorpionTrackCoordinatorEntity):
             "user_id": self.account.user_id,
             "distance_units": self.account.distance_units,
             "vehicle_ids": [vehicle.id for vehicle in self.account.vehicles],
+            "total_alerts": self.account.total_alerts,
+            "unread_alerts": self.account.unread_alerts,
+            "latest_alert": (
+                self.account.latest_alert.summary
+                if self.account.latest_alert is not None
+                else None
+            ),
             "app_api_key_available": self.account.app_api_key_available,
             "fms_api_available": bool(self.account.fms_api_url),
         }

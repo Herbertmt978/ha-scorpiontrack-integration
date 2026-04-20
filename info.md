@@ -9,6 +9,7 @@ ScorpionTrack Integration gives Home Assistant a single setup flow for two Scorp
 
 - live `device_tracker` entities for Home Assistant maps and zones
 - tidy `Location` sensors with raw coordinates kept in attributes
+- account-level alert sensors for unread count, latest alert, and recent alert details
 - account-mode vehicle sensors, binary sensors, and verified switches
 - share-mode support for multiple vehicles from a single share link
 

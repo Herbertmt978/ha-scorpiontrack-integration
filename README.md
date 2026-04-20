@@ -18,6 +18,7 @@ The two modes share the same polished entity model and install path, while still
 - Unified setup flow for account login or shared-location links
 - Live `device_tracker` entities for Home Assistant maps and zones
 - Clean `Location` sensors with raw coordinates kept in attributes instead of cluttering the entity list
+- Account-mode alert visibility with `Unread Alerts`, `Latest Alert`, and recent alert details
 - Account-mode switches for the portal features that have been verified as safe on/off controls
 - Share-mode support for multiple vehicles from a single ScorpionTrack share
 - HACS-ready repository structure, validation workflow, and brand assets
@@ -55,6 +56,7 @@ You will be asked for:
 Account mode currently provides:
 
 - live vehicle trackers for the Home Assistant map
+- account sensors such as `Unread Alerts`, `Latest Alert`, `Latest Alert Time`, and `Vehicle Count`
 - vehicle sensors such as `Status`, `Location`, `Speed`, `Heading`, `Odometer`, `Battery Voltage`, `Fuel Type`, `Battery Type`, `Unit Make`, `MOT Due`, and more
 - binary sensors such as `Ignition`, `Engine`, `Armed Mode Enabled`, `EWM Enabled`, `Driver Module Fitted`, `G-Sense Enabled`, and `Location Stale`
 - verified switches for `Privacy Mode` and `Zero-Speed Mode`

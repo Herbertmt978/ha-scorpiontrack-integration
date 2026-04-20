@@ -21,7 +21,10 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .account_api import ScorpionTrackAccountData, ScorpionTrackVehicleSummary
+from .account_api import (
+    ScorpionTrackAccountData,
+    ScorpionTrackVehicleSummary,
+)
 from .const import DOMAIN
 from .account_entity import ScorpionTrackAccountEntity, ScorpionTrackVehicleEntity
 
@@ -53,6 +56,23 @@ ACCOUNT_SENSOR_DESCRIPTIONS: tuple[ScorpionTrackAccountSensorDescription, ...] =
         name="Unread Alerts",
         icon="mdi:bell-badge",
         value_fn=lambda account: account.unread_alerts,
+    ),
+    ScorpionTrackAccountSensorDescription(
+        key="latest_alert",
+        name="Latest Alert",
+        icon="mdi:alert-circle-outline",
+        value_fn=lambda account: (
+            account.latest_alert.summary if account.latest_alert is not None else None
+        ),
+    ),
+    ScorpionTrackAccountSensorDescription(
+        key="latest_alert_time",
+        name="Latest Alert Time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-alert-outline",
+        value_fn=lambda account: (
+            account.latest_alert.timestamp if account.latest_alert is not None else None
+        ),
     ),
     ScorpionTrackAccountSensorDescription(
         key="last_refreshed",
@@ -384,7 +404,13 @@ class ScorpionTrackAccountSensorEntity(ScorpionTrackAccountEntity, SensorEntity)
     @property
     def extra_state_attributes(self) -> dict[str, object]:
         """Return extra state attributes."""
-        return self.common_account_attributes()
+        attributes = self.common_account_attributes()
+        if self.entity_description.key in {"unread_alerts", "latest_alert"}:
+            latest_alert = self.account.latest_alert
+            if latest_alert is not None:
+                attributes.update(latest_alert.as_attribute_dict())
+            attributes["recent_alerts"] = _recent_alert_attribute_list(self.account)
+        return attributes
 
 
 class ScorpionTrackVehicleSensorEntity(ScorpionTrackVehicleEntity, SensorEntity):
@@ -460,3 +486,15 @@ def _as_date(value: date | datetime | None) -> date | None:
     if isinstance(value, datetime):
         return value.date()
     return value
+
+
+def _recent_alert_attribute_list(
+    account: ScorpionTrackAccountData,
+) -> list[dict[str, object]]:
+    """Return a compact recent-alert list for state attributes."""
+    alerts: list[dict[str, object]] = []
+    for alert in account.alerts:
+        item = alert.as_attribute_dict()
+        item["summary"] = alert.summary
+        alerts.append(item)
+    return alerts
