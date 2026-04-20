@@ -1,0 +1,41 @@
+{
+  "title": "ScorpionTrack Integration",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Choose setup type",
+        "description": "ScorpionTrack can be connected either with your portal account for the richer integration or with a shared-location link for lightweight read-only tracking.",
+        "menu_options": {
+          "account": "Portal account",
+          "share": "Shared location link"
+        }
+      },
+      "account": {
+        "title": "Add portal account",
+        "description": "Enter your ScorpionTrack portal credentials. Account mode exposes the fuller set of trackers, sensors, and verified switches.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "share": {
+        "title": "Add shared location",
+        "description": "Paste either the full ScorpionTrack shared-location URL or just the token from it. A single share can include multiple vehicles.",
+        "data": {
+          "share_token": "Share URL or token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to reach ScorpionTrack.",
+      "invalid_auth": "Login failed or the portal requested an unsupported extra authentication step.",
+      "invalid_token": "The shared-location token is invalid.",
+      "share_unavailable": "The shared location has expired, been revoked, or no longer returns data.",
+      "unexpected_response": "ScorpionTrack responded in an unexpected way.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This ScorpionTrack source is already configured."
+    }
+  }
+}
