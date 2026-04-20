@@ -117,13 +117,15 @@ class ScorpionTrackVehicleEntity(ScorpionTrackCoordinatorEntity):
             return None
         return f"{self.position.latitude:.6f}, {self.position.longitude:.6f}"
 
-    def common_position_attributes(self) -> dict[str, Any]:
+    def common_position_attributes(
+        self,
+        *,
+        include_coordinates: bool = False,
+    ) -> dict[str, Any]:
         """Return shared position attributes."""
         if self.position is None:
             return {}
-        return {
-            "latitude": self.position.latitude,
-            "longitude": self.position.longitude,
+        attributes = {
             "position_timestamp": self.position.timestamp,
             "speed_kmh": self.position.speed_kmh,
             "heading": self.position.bearing,
@@ -137,8 +139,16 @@ class ScorpionTrackVehicleEntity(ScorpionTrackCoordinatorEntity):
             "position_odometer": self.position.odometer,
             "position_state": self.position.raw_state,
         }
+        if include_coordinates:
+            attributes["latitude"] = self.position.latitude
+            attributes["longitude"] = self.position.longitude
+        return attributes
 
-    def common_vehicle_attributes(self) -> dict[str, Any]:
+    def common_vehicle_attributes(
+        self,
+        *,
+        include_coordinates: bool = False,
+    ) -> dict[str, Any]:
         """Return shared vehicle attributes."""
         vehicle = self.vehicle
         attributes = {
@@ -180,7 +190,9 @@ class ScorpionTrackVehicleEntity(ScorpionTrackCoordinatorEntity):
             "updated_at": vehicle.updated_at,
             "distance_units": self.account.distance_units,
         }
-        attributes.update(self.common_position_attributes())
+        attributes.update(
+            self.common_position_attributes(include_coordinates=include_coordinates)
+        )
         return attributes
 
     @property

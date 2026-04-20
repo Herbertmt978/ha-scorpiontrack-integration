@@ -63,20 +63,22 @@ class ScorpionTrackEntity(CoordinatorEntity[ScorpionTrackShareCoordinator]):
         age = self.position_age()
         return age is None or age >= STALE_POSITION_THRESHOLD
 
-    def common_location_attributes(self) -> dict[str, Any]:
+    def common_location_attributes(
+        self,
+        *,
+        include_coordinates: bool = False,
+    ) -> dict[str, Any]:
         """Return shared location-related attributes."""
         vehicle = self.vehicle
         position = vehicle.position
         age = self.position_age()
         age_seconds = max(0, int(age.total_seconds())) if age is not None else None
 
-        return {
+        attributes = {
             "registration": vehicle.registration,
             "make": vehicle.make,
             "model": vehicle.model,
             "status": vehicle.status,
-            "latitude": position.latitude,
-            "longitude": position.longitude,
             "bearing": position.bearing,
             "heading_cardinal": _bearing_to_cardinal(position.bearing),
             "address": position.address,
@@ -89,6 +91,10 @@ class ScorpionTrackEntity(CoordinatorEntity[ScorpionTrackShareCoordinator]):
             "shared_by": self.share.owner_name,
             "share_expires": self.share.expires_at.isoformat() if self.share.expires_at else None,
         }
+        if include_coordinates:
+            attributes["latitude"] = position.latitude
+            attributes["longitude"] = position.longitude
+        return attributes
 
     @property
     def device_info(self) -> DeviceInfo:

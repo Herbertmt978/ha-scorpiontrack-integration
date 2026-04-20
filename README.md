@@ -17,7 +17,7 @@ The two modes share the same polished entity model and install path, while still
 
 - Unified setup flow for account login or shared-location links
 - Live `device_tracker` entities for Home Assistant maps and zones
-- Clean `Location` sensors with raw coordinates kept in attributes instead of cluttering the entity list
+- Clean `Location` sensors with combined coordinates available without cluttering the map with duplicate markers
 - Account-mode alert visibility with `Unread Alerts`, `Latest Alert`, and recent alert details
 - Account-mode `Mark Alerts Read` button for clearing unread portal alerts
 - Account-mode switches for the portal features that have been verified as safe on/off controls
@@ -77,7 +77,7 @@ To create the share in ScorpionTrack:
 
 Shared-link mode currently provides:
 
-- `device_tracker` entities named `Live Location`
+- `device_tracker` entities labelled with the vehicle registration or display name
 - sensors such as `Status`, `Location`, `Speed`, `Heading`, `Last Reported`, and `Share Expires`
 - binary sensors such as `Ignition` and `Location Stale`
 - share-level sensors such as `Share Title`, `Shared By`, `Share Created`, and `Share Expires`
@@ -86,7 +86,9 @@ One share can include multiple vehicles, and the integration will import every v
 
 ## Entity Design
 
-The integration intentionally keeps raw coordinates in entity attributes rather than exposing separate latitude and longitude sensors. That keeps the entity list tidier while still giving Home Assistant maps, zones, and diagnostics the location data they need.
+The integration intentionally keeps the actual map coordinates on the vehicle `device_tracker`, while the related sensors use readable location text and non-map attributes instead. That keeps Home Assistant’s map focused on one marker per vehicle instead of plotting every related sensor and status entity.
+
+Alert sensors follow the same rule. `Latest Alert` keeps the useful alert-location details, but those coordinates are exposed as alert-specific attributes rather than generic `latitude` / `longitude`, so the alert data does not become a second map marker by accident.
 
 Only controls that have been verified as behaving like true toggles are exposed as switches. For example:
 

@@ -205,6 +205,7 @@ class ScorpionTrackSensorEntity(ScorpionTrackEntity, SensorEntity):
         attributes["distance_units"] = self.share.distance_units
         if self.entity_description.key == "location":
             attributes["formatted_location"] = _format_location(self.vehicle)
+            attributes["coordinates"] = _format_coordinates(self.vehicle)
         return attributes
 
 
@@ -245,3 +246,13 @@ def _format_location(vehicle: ScorpionTrackVehicle) -> str | None:
         return f"{vehicle.position.latitude:.6f}, {vehicle.position.longitude:.6f}"
 
     return None
+
+
+def _format_coordinates(vehicle: ScorpionTrackVehicle) -> str | None:
+    """Return raw coordinates in a compact string form."""
+    if (
+        vehicle.position.latitude is None
+        or vehicle.position.longitude is None
+    ):
+        return None
+    return f"{vehicle.position.latitude:.6f}, {vehicle.position.longitude:.6f}"

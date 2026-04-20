@@ -405,10 +405,12 @@ class ScorpionTrackAccountSensorEntity(ScorpionTrackAccountEntity, SensorEntity)
     def extra_state_attributes(self) -> dict[str, object]:
         """Return extra state attributes."""
         attributes = self.common_account_attributes()
-        if self.entity_description.key in {"unread_alerts", "latest_alert"}:
+        if self.entity_description.key == "latest_alert":
             latest_alert = self.account.latest_alert
             if latest_alert is not None:
                 attributes.update(latest_alert.as_attribute_dict())
+            attributes["recent_alerts"] = _recent_alert_attribute_list(self.account)
+        elif self.entity_description.key == "unread_alerts":
             attributes["recent_alerts"] = _recent_alert_attribute_list(self.account)
         return attributes
 
@@ -450,6 +452,7 @@ class ScorpionTrackVehicleSensorEntity(ScorpionTrackVehicleEntity, SensorEntity)
         attributes = self.common_vehicle_attributes()
         if self.entity_description.key == "location":
             attributes["formatted_location"] = self.format_location()
+            attributes["coordinates"] = _format_coordinates(self.vehicle)
         return attributes
 
 
@@ -477,6 +480,18 @@ def _vehicle_speed(
     if account.uses_miles:
         return round(vehicle.position.speed_kmh * 0.621371, 2)
     return vehicle.position.speed_kmh
+
+
+def _format_coordinates(vehicle: ScorpionTrackVehicleSummary) -> str | None:
+    """Return raw coordinates in a compact string form."""
+    if vehicle.position is None:
+        return None
+    if (
+        vehicle.position.latitude is None
+        or vehicle.position.longitude is None
+    ):
+        return None
+    return f"{vehicle.position.latitude:.6f}, {vehicle.position.longitude:.6f}"
 
 
 def _as_date(value: date | datetime | None) -> date | None:

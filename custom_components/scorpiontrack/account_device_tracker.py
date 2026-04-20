@@ -45,7 +45,7 @@ async def async_setup_entry(
 class ScorpionTrackTrackerEntity(ScorpionTrackVehicleEntity, TrackerEntity):
     """Represent the latest authenticated GPS location for a vehicle."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
     _attr_icon = "mdi:car"
     _attr_source_type = SourceType.GPS
 
@@ -53,7 +53,11 @@ class ScorpionTrackTrackerEntity(ScorpionTrackVehicleEntity, TrackerEntity):
         """Initialize the tracker."""
         super().__init__(coordinator, vehicle_id)
         self._attr_unique_id = f"{self.account_identifier}_{vehicle_id}_tracker"
-        self._attr_name = "Live Location"
+
+    @property
+    def name(self) -> str:
+        """Return the registration-focused tracker label."""
+        return self.vehicle.registration or self.vehicle.display_name
 
     @property
     def available(self) -> bool:
@@ -85,6 +89,6 @@ class ScorpionTrackTrackerEntity(ScorpionTrackVehicleEntity, TrackerEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra state attributes."""
-        attributes = self.common_vehicle_attributes()
+        attributes = self.common_vehicle_attributes(include_coordinates=True)
         attributes["formatted_location"] = self.format_location()
         return attributes

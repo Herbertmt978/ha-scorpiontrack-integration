@@ -83,6 +83,13 @@ class ScorpionTrackAlertSummary:
     longitude: float | None
 
     @property
+    def location(self) -> str | None:
+        """Return a human-friendly alert location string."""
+        if self.latitude is None or self.longitude is None:
+            return None
+        return f"{self.latitude:.6f}, {self.longitude:.6f}"
+
+    @property
     def display_vehicle(self) -> str | None:
         """Return the best user-facing vehicle label."""
         return (
@@ -119,8 +126,9 @@ class ScorpionTrackAlertSummary:
             "road_speed": self.road_speed,
             "idle": self.idle,
             "engine_hours": self.engine_hours,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
+            "alert_location": self.location,
+            "alert_latitude": self.latitude,
+            "alert_longitude": self.longitude,
         }
 
 
