@@ -27,11 +27,11 @@
       }
     },
     "error": {
-      "cannot_connect": "Failed to reach ScorpionTrack.",
-      "invalid_auth": "Login failed or the portal requested an unsupported extra authentication step.",
-      "invalid_token": "The shared-location token is invalid.",
-      "share_unavailable": "The shared location has expired, been revoked, or no longer returns data.",
-      "unexpected_response": "ScorpionTrack responded in an unexpected way.",
+      "cannot_connect": "Could not connect to ScorpionTrack. Please try again.",
+      "invalid_auth": "Your ScorpionTrack username or password is incorrect, or the portal asked for an extra verification step that this integration cannot complete.",
+      "invalid_token": "Your shared-location link is invalid or incomplete.",
+      "share_unavailable": "Your shared-location link is invalid, expired, been revoked, or no longer returns data.",
+      "unexpected_response": "ScorpionTrack returned something unexpected. Turn on debug logging and try again.",
       "unknown": "Unexpected error"
     },
     "abort": {

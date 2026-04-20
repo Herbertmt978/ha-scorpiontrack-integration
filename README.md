@@ -104,6 +104,26 @@ Only controls that have been verified as behaving like true toggles are exposed 
 - If you open an issue, avoid posting live credentials, tokens, or screenshots that reveal current locations.
 - The authenticated portal mode relies on private web behaviour, so it should be treated more conservatively than a documented public API integration.
 
+## Troubleshooting and Logging
+
+The integration now logs the important failure paths needed to diagnose real-world setup problems, including:
+
+- rejected portal username or password attempts
+- redirects back to the login page
+- missing CSRF tokens or missing portal API details
+- invalid, expired, revoked, or malformed shared-location links
+- unexpected non-JSON or malformed portal responses
+
+Passwords and share tokens are not written to the logs. Emails and tokens are lightly redacted so you can still correlate reports safely.
+
+To enable deeper diagnostics in Home Assistant, add:
+
+```yaml
+logger:
+  logs:
+    custom_components.scorpiontrack: debug
+```
+
 ## Development Notes
 
 The authenticated portal work is documented in [docs/portal-notes.md](docs/portal-notes.md).

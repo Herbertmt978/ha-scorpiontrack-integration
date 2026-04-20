@@ -5,12 +5,16 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
+import logging
 from typing import Any
 from urllib.parse import parse_qs, quote, urlparse
 
 from aiohttp import ClientError, ClientSession
 
 from .const import API_BASE_URL
+from .utils import mask_token
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ScorpionTrackError(Exception):
@@ -114,6 +118,7 @@ class ScorpionTrackClient:
         """Extract a ScorpionTrack token from a raw token or shared URL."""
         cleaned = value.strip()
         if not cleaned:
+            _LOGGER.warning("ScorpionTrack share setup was attempted without a token")
             raise ScorpionTrackInvalidTokenError("No share token supplied")
 
         if "://" not in cleaned:
@@ -122,6 +127,10 @@ class ScorpionTrackClient:
         parsed = urlparse(cleaned)
         token = parse_qs(parsed.query).get("token", [None])[0]
         if not token:
+            _LOGGER.warning(
+                "ScorpionTrack shared URL did not contain a token parameter (path=%s)",
+                parsed.path,
+            )
             raise ScorpionTrackInvalidTokenError(
                 "Shared URL does not contain a token parameter"
             )
@@ -131,35 +140,88 @@ class ScorpionTrackClient:
     async def async_get_share(self) -> ScorpionTrackShare:
         """Fetch the latest shared-location payload."""
         url = f"{self._base_url}/location-shares/{quote(self._token, safe='')}/view"
+        _LOGGER.debug(
+            "Fetching ScorpionTrack shared location for token %s",
+            mask_token(self._token),
+        )
 
         try:
             async with asyncio.timeout(self._timeout_seconds):
                 async with self._session.get(url) as response:
                     if response.status in (401, 403):
+                        _LOGGER.warning(
+                            "ScorpionTrack rejected shared-location token %s with HTTP %s",
+                            mask_token(self._token),
+                            response.status,
+                        )
                         raise ScorpionTrackInvalidTokenError("Share token was rejected")
                     if response.status == 404:
+                        _LOGGER.warning(
+                            "ScorpionTrack shared-location token %s no longer resolves (HTTP 404)",
+                            mask_token(self._token),
+                        )
                         raise ScorpionTrackShareUnavailableError(
                             "Shared location was not found"
                         )
                     if response.status >= 400:
+                        _LOGGER.warning(
+                            "ScorpionTrack shared-location token %s returned unexpected HTTP %s",
+                            mask_token(self._token),
+                            response.status,
+                        )
                         raise ScorpionTrackConnectionError(
                             f"Unexpected HTTP status {response.status}"
                         )
 
                     payload = await response.json(content_type=None)
         except TimeoutError as err:
+            _LOGGER.warning(
+                "Timed out contacting ScorpionTrack for shared-location token %s",
+                mask_token(self._token),
+            )
             raise ScorpionTrackConnectionError("Timed out contacting ScorpionTrack") from err
         except ClientError as err:
+            _LOGGER.warning(
+                "Error contacting ScorpionTrack for shared-location token %s: %s",
+                mask_token(self._token),
+                err,
+            )
             raise ScorpionTrackConnectionError("Failed to contact ScorpionTrack") from err
         except ValueError as err:
+            _LOGGER.warning(
+                "ScorpionTrack returned invalid JSON for shared-location token %s",
+                mask_token(self._token),
+            )
             raise ScorpionTrackConnectionError("ScorpionTrack returned invalid JSON") from err
 
-        return self._parse_share(payload)
+        try:
+            share = self._parse_share(payload)
+        except (KeyError, TypeError, ValueError) as err:
+            _LOGGER.warning(
+                "ScorpionTrack returned malformed shared-location data for token %s: %s",
+                mask_token(self._token),
+                err,
+            )
+            raise ScorpionTrackShareUnavailableError(
+                "Shared location returned malformed data"
+            ) from err
+
+        _LOGGER.debug(
+            "Fetched ScorpionTrack shared location %s for token %s with %s vehicle(s)",
+            share.id,
+            mask_token(self._token),
+            len(share.vehicles),
+        )
+        return share
 
     def _parse_share(self, payload: dict[str, Any]) -> ScorpionTrackShare:
         """Convert the API payload into structured data."""
         share_data = payload.get("data")
         if not isinstance(share_data, dict):
+            _LOGGER.warning(
+                "ScorpionTrack shared-location token %s returned no active share payload",
+                mask_token(self._token),
+            )
             raise ScorpionTrackShareUnavailableError(
                 "Shared location is expired, revoked, or empty"
             )

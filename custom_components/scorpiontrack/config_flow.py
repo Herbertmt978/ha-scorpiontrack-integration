@@ -35,7 +35,7 @@ from .share_api import (
     ScorpionTrackInvalidTokenError,
     ScorpionTrackShareUnavailableError,
 )
-from .utils import stable_hash
+from .utils import mask_email, mask_token, stable_hash
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,11 +113,26 @@ class ScorpionTrackConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 info = await _async_validate_account_input(self.hass, user_input)
-            except ScorpionTrackAccountConnectionError:
+            except ScorpionTrackAccountConnectionError as err:
+                _LOGGER.warning(
+                    "ScorpionTrack account validation could not connect for %s: %s",
+                    mask_email(user_input[CONF_EMAIL]),
+                    err,
+                )
                 errors["base"] = "cannot_connect"
-            except ScorpionTrackAuthError:
+            except ScorpionTrackAuthError as err:
+                _LOGGER.warning(
+                    "ScorpionTrack account validation rejected credentials for %s: %s",
+                    mask_email(user_input[CONF_EMAIL]),
+                    err,
+                )
                 errors["base"] = "invalid_auth"
-            except ScorpionTrackPortalError:
+            except ScorpionTrackPortalError as err:
+                _LOGGER.warning(
+                    "ScorpionTrack account validation returned an unexpected portal response for %s: %s",
+                    mask_email(user_input[CONF_EMAIL]),
+                    err,
+                )
                 errors["base"] = "unexpected_response"
             except Exception:  # pragma: no cover - defensive logging
                 _LOGGER.exception("Unexpected exception while validating ScorpionTrack account")
@@ -155,11 +170,26 @@ class ScorpionTrackConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 info = await _async_validate_share_input(self.hass, user_input)
-            except ScorpionTrackShareConnectionError:
+            except ScorpionTrackShareConnectionError as err:
+                _LOGGER.warning(
+                    "ScorpionTrack share validation could not connect for token %s: %s",
+                    mask_token(user_input[CONF_SHARE_TOKEN]),
+                    err,
+                )
                 errors["base"] = "cannot_connect"
-            except ScorpionTrackInvalidTokenError:
+            except ScorpionTrackInvalidTokenError as err:
+                _LOGGER.warning(
+                    "ScorpionTrack share validation rejected token %s: %s",
+                    mask_token(user_input[CONF_SHARE_TOKEN]),
+                    err,
+                )
                 errors["base"] = "invalid_token"
-            except ScorpionTrackShareUnavailableError:
+            except ScorpionTrackShareUnavailableError as err:
+                _LOGGER.warning(
+                    "ScorpionTrack share validation found unavailable share for token %s: %s",
+                    mask_token(user_input[CONF_SHARE_TOKEN]),
+                    err,
+                )
                 errors["base"] = "share_unavailable"
             except Exception:  # pragma: no cover - defensive logging
                 _LOGGER.exception("Unexpected exception while validating ScorpionTrack share")
