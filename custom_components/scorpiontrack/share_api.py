@@ -239,9 +239,19 @@ def _to_float(value: Any) -> float | None:
 
 def _to_bool(value: Any) -> bool | None:
     """Convert a value to bool when possible."""
-    if value is None:
+    if value is None or value == "":
         return None
-    return bool(value)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    return None
 
 
 def _parse_datetime(value: Any, *, assume_utc: bool = False) -> datetime | None:
